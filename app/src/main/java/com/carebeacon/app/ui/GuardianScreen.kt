@@ -39,6 +39,7 @@ import com.carebeacon.app.data.Reminder
 @Composable
 fun GuardianScreen(
     viewModel: AppViewModel,
+    demoMode: Boolean,
     onAdd: () -> Unit,
     onTest: (Reminder) -> Unit
 ) {
@@ -70,7 +71,27 @@ fun GuardianScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text("在被提醒人端输入此码完成配对", fontSize = 12.sp)
+                    Text(
+                        text = if (demoMode)
+                            "演示模式已开启：两角色共享本机数据库。"
+                        else
+                            "生产模式下，被提醒人手机需输入此码完成配对。",
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            if (!demoMode) {
+                Spacer(Modifier.height(8.dp))
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("生产模式", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "本机不会响铃。请在被提醒人手机上启动 CareBeacon 并输入上方邀请码。",
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
 
@@ -90,6 +111,7 @@ fun GuardianScreen(
                     items(reminders, key = { it.id }) { r ->
                         ReminderRow(
                             reminder = r,
+                            demoMode = demoMode,
                             onDelete = { viewModel.deleteReminder(r) },
                             onTest = { onTest(r) }
                         )
@@ -103,6 +125,7 @@ fun GuardianScreen(
 @Composable
 private fun ReminderRow(
     reminder: Reminder,
+    demoMode: Boolean,
     onDelete: () -> Unit,
     onTest: () -> Unit
 ) {
@@ -128,8 +151,12 @@ private fun ReminderRow(
                 val repeat = if (reminder.weekMask == 0) "仅一次" else "每周重复"
                 Text(repeat, fontSize = 12.sp)
             }
-            IconButton(onClick = onTest) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "立即触发")
+            // Strict role rule: the test-fire button only exists in demo mode.
+            // In production the Guardian never sees the alert.
+            if (demoMode) {
+                IconButton(onClick = onTest) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = "演示：立即触发")
+                }
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "删除")

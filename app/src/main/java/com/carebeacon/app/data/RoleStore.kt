@@ -2,6 +2,7 @@ package com.carebeacon.app.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -24,6 +25,14 @@ class RoleStore(private val context: Context) {
         prefs[KEY_CODE]
     }
 
+    /**
+     * Demo-mode flag — true means the user has acknowledged that both roles share
+     * the local DB so they can be exercised on the same device. Default false.
+     */
+    val demoMode: Flow<Boolean> = context.roleDataStore.data.map { prefs: Preferences ->
+        prefs[KEY_DEMO] ?: false
+    }
+
     suspend fun setRole(role: String) {
         context.roleDataStore.edit { it[KEY_ROLE] = role }
     }
@@ -34,6 +43,10 @@ class RoleStore(private val context: Context) {
         }
     }
 
+    suspend fun setDemoMode(enabled: Boolean) {
+        context.roleDataStore.edit { it[KEY_DEMO] = enabled }
+    }
+
     suspend fun clear() {
         context.roleDataStore.edit { it.clear() }
     }
@@ -41,5 +54,6 @@ class RoleStore(private val context: Context) {
     companion object {
         private val KEY_ROLE = stringPreferencesKey("role")
         private val KEY_CODE = stringPreferencesKey("pairing_code")
+        private val KEY_DEMO = booleanPreferencesKey("demo_mode")
     }
 }

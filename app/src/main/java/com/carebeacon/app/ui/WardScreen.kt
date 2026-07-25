@@ -1,6 +1,5 @@
 package com.carebeacon.app.ui
 
-import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,11 +40,12 @@ import java.util.Locale
 @Composable
 fun WardScreen(
     viewModel: AppViewModel,
-    onRequestPermissions: (Activity) -> Unit,
+    onRequestPermissions: () -> Unit,
+    onArmReminders: () -> Unit,
 ) {
     val reminders by viewModel.reminders.collectAsState()
     val acks by viewModel.acks.collectAsState()
-    val paired by viewModel.paired.collectAsState()
+    val demo by viewModel.demoMode.collectAsState()
     var input by remember { mutableStateOf("") }
 
     Scaffold(topBar = { TopAppBar(title = { Text("今日提醒") }) }) { padding ->
@@ -55,10 +55,36 @@ fun WardScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            if (!paired) {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("守护本机", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (demo)
+                            "演示模式：本机同时作为监护人和被提醒人。"
+                        else
+                            "本机只会接收弹窗，不会看到配置入口。",
+                        fontSize = 12.sp
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = onRequestPermissions,
+                            modifier = Modifier.weight(1f)
+                        ) { Text("开启保活权限") }
+                        Button(
+                            onClick = onArmReminders,
+                            modifier = Modifier.weight(1f)
+                        ) { Text("启动守护") }
+                    }
+                }
+            }
+
+            if (!demo) {
+                Spacer(Modifier.height(8.dp))
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
-                        Text("输入监护人邀请码完成配对", fontSize = 14.sp)
+                        Text("输入监护人邀请码", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
                         OutlinedTextField(
                             value = input,
@@ -76,22 +102,20 @@ fun WardScreen(
                         }
                     }
                 }
-                Spacer(Modifier.height(16.dp))
             }
 
-            Button(
-                onClick = { /* Permission flow triggered via MainActivity callback */ },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("开启保活所需的全部权限")
-            }
             Spacer(Modifier.height(16.dp))
 
             Text("已配置的提醒", fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             if (reminders.isEmpty()) {
-                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text("暂无提醒，请先让监护人在其手机配置", fontSize = 14.sp)
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("暂无提醒，请让监护人在其手机上配置", fontSize = 14.sp)
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -127,10 +151,7 @@ private fun ReminderRow(r: Reminder, lastAck: AckLog?) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(r.title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    String.format("%02d:%02d", r.hour, r.minute),
-                    fontSize = 14.sp
-                )
+                Text(String.format("%02d:%02d", r.hour, r.minute), fontSize = 14.sp)
                 if (lastAck != null) {
                     val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
                     Text(

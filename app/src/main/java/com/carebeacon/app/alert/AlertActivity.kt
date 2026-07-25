@@ -44,6 +44,7 @@ import com.carebeacon.app.CareBeaconApp
 import com.carebeacon.app.alarm.AlarmEngine
 import com.carebeacon.app.data.AckLog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -226,7 +227,10 @@ class AlertActivity : ComponentActivity() {
                     val reminder = app.database.reminderDao().get(reminderId)
                     if (reminder != null) {
                         val engine = AlarmEngine(app)
-                        engine.rescheduleAll(listOf(reminder))
+                        // The alert only ever fires on a Ward device (see RolePolicy.canArm),
+                        // so reading the role from the store is safe and self-consistent.
+                        val localRole = app.roleStore.role.first()
+                        engine.rescheduleAll(listOf(reminder), localRole)
                     }
                 }
             }

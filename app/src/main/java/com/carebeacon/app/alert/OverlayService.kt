@@ -22,8 +22,10 @@ import com.carebeacon.app.CareBeaconApp
 import com.carebeacon.app.R
 import com.carebeacon.app.alarm.AlarmEngine
 import com.carebeacon.app.data.AckLog
+import com.carebeacon.app.data.RolePolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -150,7 +152,8 @@ class OverlayService : Service() {
                 )
                 val reminder = app.database.reminderDao().get(reminderId)
                 if (reminder != null) {
-                    AlarmEngine(app).rescheduleAll(listOf(reminder))
+                    val localRole = app.roleStore.role.first()
+                    AlarmEngine(app).rescheduleAll(listOf(reminder), localRole)
                 }
             }
         }

@@ -11,52 +11,66 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.carebeacon.app.data.RolePolicy
 import com.carebeacon.app.permissions.PermissionHelper
 import com.carebeacon.app.ui.AppViewModel
 import com.carebeacon.app.ui.GuardianScreen
-import com.carebeacon.app.ui.ReminderEditScreen
 import com.carebeacon.app.ui.RoleSelectScreen
 import com.carebeacon.app.ui.WardScreen
 import com.carebeacon.app.ui.theme.CareBeaconTheme
-import kotlinx.coroutines.launch
+import androidx.activity.viewModels
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var viewModel: AppViewModel
+    private val viewModel: AppViewModel by viewModels()
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* no-op; user choice persisted */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        viewModel = AppViewModel(application)
-
         maybeRequestNotificationPermission()
 
         setContent {
             CareBeaconTheme {
                 val role by viewModel.role.collectAsState()
-                val reminders by viewModel.reminders.collectAsState()
+                val demo by viewModel.demoMode.collectAsState()
                 when {
                     role == null -> RoleSelectScreen(
-                        onGuardian = { viewModel.setRole("guardian") },
-                        onWard = { viewModel.setRole("ward") }
+                        demoMode = demo,
+                        onSetDemoMode = viewModel::setDemoMode,
+                        onGuardian = { viewModel.setRole(RolePolicy.ROLE_GUARDIAN) },
+                        onWard = {
+                            viewModel.setRole(RolePolicy.ROLE_WARD)
+                            viewModel.armVisibleReminders()
+                            startServiceCompat()
+                        }
                     )
-                    role == "guardian" -> GuardianScreen(
+                    role == RolePolicy.ROLE_GUARDIAN -> GuardianScreen(
                         viewModel = viewModel,
+                        demoMode = demo,
                         onAdd = { startActivity(Intent(this, ReminderEditActivity::class.java)) },
-                        onTest = { viewModel.fireNow(it) }
+                        onTest = viewModel::fireNow
                     )
-                    role == "ward" -> WardScreen(
+                    role == RolePolicy.ROLE_WARD -> WardScreen(
                         viewModel = viewModel,
-                        onRequestPermissions = { requestWardPermissions() }
+                        onRequestPermissions = ::requestWardPermissions,
+                        onArmReminders = ::armWardReminders
                     )
                 }
             }
         }
+    }
+
+    private fun startServiceCompat() {
+        val app = application as CareBeaconApp
+        app.startWardService()
+    }
+
+    private fun armWardReminders() {
+        viewModel.armVisibleReminders()
+        startServiceCompat()
     }
 
     private fun maybeRequestNotificationPermission() {
@@ -69,7 +83,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestWardPermissions() {
-        // Build a single dialog walking the user through every quirk.
         AlertDialog.Builder(this)
             .setTitle(R.string.perm_battery_title)
             .setMessage(
