@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -101,15 +102,22 @@ class OverlayService : Service() {
         else
             @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY
 
+        // NOTE: FLAG_NOT_FOCUSABLE is intentionally OMITTED. With it set, touches
+        // outside our button would pass through to the launcher underneath. By
+        // making the overlay focusable the system routes every touch / swipe
+        // into our view tree so we can swallow them. FLAG_SECURE keeps the
+        // overlay out of recents thumbnails / screenshots.
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_SECURE,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.TOP or Gravity.START }
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+        }
 
         val inflater = LayoutInflater.from(this)
         val view = inflater.inflate(R.layout.overlay_alert, null)
@@ -118,9 +126,22 @@ class OverlayService : Service() {
         view.findViewById<Button>(R.id.overlay_ack).setOnClickListener {
             acknowledgeAndStop()
         }
+
         try {
             wm.addView(view, params)
             overlayView = view
+            // Once laid out, claim the entire screen as a gesture-exclusion
+            // rectangle. This is what stops gesture-navigation swipes
+            // (edge swipes for HOME / BACK / recents) from being interpreted
+            // by the OS while our overlay is visible.
+            view.post {
+                overlayView?.let { v ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        v.systemGestureExclusionRects =
+                            listOf(Rect(0, 0, v.width, v.height))
+                    }
+                }
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to add overlay view; permission missing?", e)
             stopSelf()

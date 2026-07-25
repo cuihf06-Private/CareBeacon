@@ -2,6 +2,7 @@ package com.carebeacon.app.alert
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
@@ -10,7 +11,10 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
+import android.view.WindowInsets
 import android.view.WindowManager
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -71,6 +75,7 @@ class AlertActivity : ComponentActivity() {
     private var reminderId: Long = -1L
     private var reminderTitle: String = ""
     private var originalAlarmVolume: Int = -1
+    private var backInvokedCallback: OnBackInvokedCallback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,9 +93,47 @@ class AlertActivity : ComponentActivity() {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        // Block media of the alert from appearing in screenshots / recents thumbnails,
+        // and (more importantly) keep the activity from exposing a dismiss affordance
+        // through the recents UI.
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+
+        // Sticky immersive: hide the nav bar so the HOME gesture indicator is gone.
+        // If the user edge-swipes to peek the nav bar, it disappears again after
+        // a short transient.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+            window.insetsController?.let { controller ->
+                controller.hide(WindowInsets.Type.systemBars())
+                controller.systemBarsBehavior =
+                    android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                    android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                    android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
             km.requestDismissKeyguard(this, null)
+        }
+
+        // Android 13+ predictive back gesture / system back. Registering with
+        // PRIORITY_OVERLAY swallows the back press before any default dispatcher
+        // gets to react — so the predictive back animation never plays, and the
+        // edge-swipe back gesture simply does nothing.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val cb = OnBackInvokedCallback { /* swallow back press */ }
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_OVERLAY,
+                cb
+            )
+            backInvokedCallback = cb
         }
 
         reminderId = intent.getLongExtra(EXTRA_REMINDER_ID, -1L)
@@ -117,11 +160,20 @@ class AlertActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         ensureVolumeMax()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setTurnScreenOn(true)
+        }
+        // Re-apply immersive every time we regain foreground (e.g. after the user
+        // unlocked the screen).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.hide(WindowInsets.Type.systemBars())
+        }
     }
 
     override fun onPause() {
         super.onPause()
-        // The user is trying to escape via Home. Surface an overlay so we can't be ignored.
+        // The user is trying to escape via Home / recents gesture / app switch.
+        // Surface the full-screen overlay so we can't be ignored.
         if (!isFinishing) {
             try {
                 OverlayService.show(this, reminderId, reminderTitle)
@@ -131,28 +183,87 @@ class AlertActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Called when the user takes an action that would leave the activity
+     * (HOME swipe, recents gesture, etc.). We cannot cancel the system action
+     * here, but we can guarantee the full-screen overlay fallback is up before
+     * the user catches a glimpse of anything else.
+     */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        try {
+            OverlayService.show(this, reminderId, reminderTitle)
+        } catch (e: Exception) {
+            Log.w(TAG, "Overlay fallback (onUserLeaveHint) failed", e)
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        backInvokedCallback?.let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it)
+            }
+        }
+        backInvokedCallback = null
         stopAlarmSound()
         try {
             OverlayService.hide(this)
         } catch (_: Exception) { /* ignore */ }
     }
 
-    @Deprecated("Deprecated in Java but still functional for blocking the back key")
+    @Deprecated("Pre-Tiramisu; we also register OnBackInvokedCallback for 33+")
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
-        moveTaskToBack(true)
-        OverlayService.show(this, reminderId, reminderTitle)
+        // Intent: stay. Do NOT call super.onBackPressed() (which would let the
+        // default back handler run) and do NOT call moveTaskToBack(true) (which
+        // would push us to the launcher). The only safe behavior is to do
+        // nothing — the overlay is already up as a second line of defense.
+        try {
+            OverlayService.show(this, reminderId, reminderTitle)
+        } catch (_: Exception) { /* best effort */ }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // Swallow every key that could let the user escape or alter system state.
+        // Volume keys are explicitly consumed so we can keep our STREAM_ALARM
+        // pinned at max without the user being able to mute it.
         return when (keyCode) {
             KeyEvent.KEYCODE_HOME,
             KeyEvent.KEYCODE_BACK,
             KeyEvent.KEYCODE_APP_SWITCH,
-            KeyEvent.KEYCODE_MENU -> true
+            KeyEvent.KEYCODE_MENU,
+            KeyEvent.KEYCODE_SEARCH,
+            KeyEvent.KEYCODE_ASSIST,
+            KeyEvent.KEYCODE_VOICE_ASSIST,
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent.KEYCODE_VOLUME_DOWN,
+            KeyEvent.KEYCODE_VOLUME_MUTE,
+            KeyEvent.KEYCODE_ESCAPE,
+            KeyEvent.KEYCODE_POWER,
+            KeyEvent.KEYCODE_NOTIFICATION -> true
             else -> super.onKeyDown(keyCode, event)
+        }
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        // Swallow key-up too so nothing leaks (e.g. CAMERA_UUP firing after
+        // CAMERA was caught by another dispatcher).
+        return when (keyCode) {
+            KeyEvent.KEYCODE_HOME,
+            KeyEvent.KEYCODE_BACK,
+            KeyEvent.KEYCODE_APP_SWITCH,
+            KeyEvent.KEYCODE_MENU,
+            KeyEvent.KEYCODE_SEARCH,
+            KeyEvent.KEYCODE_ASSIST,
+            KeyEvent.KEYCODE_VOICE_ASSIST,
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent.KEYCODE_VOLUME_DOWN,
+            KeyEvent.KEYCODE_VOLUME_MUTE,
+            KeyEvent.KEYCODE_ESCAPE,
+            KeyEvent.KEYCODE_POWER,
+            KeyEvent.KEYCODE_NOTIFICATION -> true
+            else -> super.onKeyUp(keyCode, event)
         }
     }
 
