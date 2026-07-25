@@ -13,11 +13,9 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
-import com.carebeacon.app.data.RolePolicy
 import com.carebeacon.app.permissions.PermissionHelper
 import com.carebeacon.app.ui.AppViewModel
 import com.carebeacon.app.ui.AuthScreen
@@ -43,13 +41,15 @@ class MainActivity : ComponentActivity() {
                 val session by viewModel.session.collectAsState()
                 // Which legacy role screen to show while we're inside it. The
                 // value flips to null when the user goes back to HomeScreen.
-                // PR4 deletes this and the role-based screens entirely.
+                // Both screens are account-aware (filter by accountId, not
+                // device role), so flipping this state does not mutate any
+                // global preference.
                 var workspace by rememberSaveable { mutableStateOf<String?>(null) }
-                var showInvite by remember { mutableStateOf(false) }
+                var showInvite by rememberSaveable { mutableStateOf(false) }
 
                 when {
                     session == null -> AuthScreen(
-                        showLegacyHint = false, // PR3 keeps this off; PR4 flips it on.
+                        showLegacyHint = false,
                         onLogin = { username, cb ->
                             viewModel.login(username) { result -> cb(result.map {}) }
                         },
@@ -59,12 +59,8 @@ class MainActivity : ComponentActivity() {
                     )
                     workspace == null -> HomeScreen(
                         viewModel = viewModel,
-                        onEnterGuardianMode = {
-                            viewModel.setRole(RolePolicy.ROLE_GUARDIAN)
-                            workspace = "guardian"
-                        },
+                        onEnterGuardianMode = { workspace = "guardian" },
                         onEnterWardMode = {
-                            viewModel.setRole(RolePolicy.ROLE_WARD)
                             viewModel.armVisibleReminders()
                             startServiceCompat()
                             workspace = "ward"
@@ -73,16 +69,14 @@ class MainActivity : ComponentActivity() {
                     )
                     workspace == "guardian" -> GuardianScreen(
                         viewModel = viewModel,
-                        demoMode = viewModel.demoMode.collectAsState().value,
                         onAdd = { startActivity(Intent(this, ReminderEditActivity::class.java)) },
-                        onTest = viewModel::fireNow,
-                        onBack = { workspace = null }
+                        onBack = { workspace = null },
                     )
                     workspace == "ward" -> WardScreen(
                         viewModel = viewModel,
                         onRequestPermissions = ::requestWardPermissions,
                         onArmReminders = ::armWardReminders,
-                        onBack = { workspace = null }
+                        onBack = { workspace = null },
                     )
                 }
 

@@ -16,16 +16,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -47,10 +43,8 @@ fun WardScreen(
     onArmReminders: () -> Unit,
     onBack: (() -> Unit)? = null,
 ) {
-    val reminders by viewModel.reminders.collectAsState()
+    val reminders by viewModel.remindersAsWard.collectAsState()
     val acks by viewModel.acks.collectAsState()
-    val demo by viewModel.demoMode.collectAsState()
-    var input by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -77,10 +71,7 @@ fun WardScreen(
                     Text("守护本机", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        if (demo)
-                            "演示模式：本机同时作为监护人和被提醒人。"
-                        else
-                            "本机只会接收弹窗，不会看到配置入口。",
+                        "本机只会接收弹窗，不会看到配置入口。",
                         fontSize = 12.sp
                     )
                     Spacer(Modifier.height(12.dp))
@@ -93,30 +84,6 @@ fun WardScreen(
                             onClick = onArmReminders,
                             modifier = Modifier.weight(1f)
                         ) { Text("启动守护") }
-                    }
-                }
-            }
-
-            if (!demo) {
-                Spacer(Modifier.height(8.dp))
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("输入监护人邀请码", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = input,
-                            onValueChange = { input = it.filter { c -> c.isDigit() }.take(6) },
-                            label = { Text("6 位数字码") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = { viewModel.pairWithGuardian(input) },
-                            enabled = input.length == 6,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("配对")
-                        }
                     }
                 }
             }

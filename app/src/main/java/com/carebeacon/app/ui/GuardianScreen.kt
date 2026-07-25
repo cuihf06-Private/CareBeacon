@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,13 +40,11 @@ import com.carebeacon.app.data.Reminder
 @Composable
 fun GuardianScreen(
     viewModel: AppViewModel,
-    demoMode: Boolean,
     onAdd: () -> Unit,
-    onTest: (Reminder) -> Unit,
     onBack: (() -> Unit)? = null,
 ) {
-    val reminders by viewModel.reminders.collectAsState()
-    val pairCode by viewModel.pairCode.collectAsState()
+    val reminders by viewModel.remindersAsGuardian.collectAsState()
+    val account by viewModel.currentAccount.collectAsState()
 
     Scaffold(
         topBar = {
@@ -76,36 +73,16 @@ fun GuardianScreen(
         ) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("你的邀请码", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "为账号 ${account?.displayName ?: "?"} 管理提醒",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = pairCode ?: "正在生成…",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
+                        text = "作为监护人，可以为被监护人配置不可忽略的提醒。",
+                        fontSize = 12.sp,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = if (demoMode)
-                            "演示模式已开启：两角色共享本机数据库。"
-                        else
-                            "生产模式下，被提醒人手机需输入此码完成配对。",
-                        fontSize = 12.sp
-                    )
-                }
-            }
-
-            if (!demoMode) {
-                Spacer(Modifier.height(8.dp))
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("生产模式", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "本机不会响铃。请在被提醒人手机上启动 CareBeacon 并输入上方邀请码。",
-                            fontSize = 12.sp
-                        )
-                    }
                 }
             }
 
@@ -125,9 +102,7 @@ fun GuardianScreen(
                     items(reminders, key = { it.id }) { r ->
                         ReminderRow(
                             reminder = r,
-                            demoMode = demoMode,
                             onDelete = { viewModel.deleteReminder(r) },
-                            onTest = { onTest(r) }
                         )
                     }
                 }
@@ -139,9 +114,7 @@ fun GuardianScreen(
 @Composable
 private fun ReminderRow(
     reminder: Reminder,
-    demoMode: Boolean,
     onDelete: () -> Unit,
-    onTest: () -> Unit
 ) {
     Card(Modifier.fillMaxWidth()) {
         Row(
@@ -164,13 +137,6 @@ private fun ReminderRow(
                 }
                 val repeat = if (reminder.weekMask == 0) "仅一次" else "每周重复"
                 Text(repeat, fontSize = 12.sp)
-            }
-            // Strict role rule: the test-fire button only exists in demo mode.
-            // In production the Guardian never sees the alert.
-            if (demoMode) {
-                IconButton(onClick = onTest) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = "演示：立即触发")
-                }
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "删除")

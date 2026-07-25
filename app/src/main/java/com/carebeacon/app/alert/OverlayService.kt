@@ -152,8 +152,8 @@ class OverlayService : Service() {
                 )
                 val reminder = app.database.reminderDao().get(reminderId)
                 if (reminder != null) {
-                    val localRole = app.roleStore.role.first()
-                    AlarmEngine(app).rescheduleAll(listOf(reminder), localRole)
+                    val accountId = app.sessionStore.currentAccountId.first()
+                    AlarmEngine(app).rescheduleAll(listOf(reminder), accountId)
                 }
             }
         }

@@ -1,116 +1,101 @@
 package com.carebeacon.app.data
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Unit tests for [RolePolicy].
- *
- * The product rule the tests encode:
- *  - Guardians configure reminders but never receive alerts.
- *  - Wards receive alerts but never configure reminders.
- *  - The on-demand "fire now" button only exists in demo mode.
+ * Account-aware reminder policy tests. Replaces the device-role tests that
+ * PR3 left around. The invariants encoded here:
+ *  - A reminder is visible to the ward whose [Reminder.wardId] matches.
+ *  - A reminder is visible to the guardian whose [Reminder.guardianId] matches.
+ *  - The same account can be both a guardian (for some wards) and a ward
+ *    (under some guardians) — the filtering is per-side, not exclusive.
+ *  - The alarm engine arms only reminders whose [Reminder.wardId] is the
+ *    current account, regardless of side.
+ *  - Editors only work for the author (guardian).
  */
 class RolePolicyTest {
 
-    private fun guardianReminder(id: Long = 1L) = Reminder(
+    private fun rem(
+        id: Long = 1L,
+        wardId: String = "ward-1",
+        guardianId: String = "guardian-1",
+        enabled: Boolean = true,
+    ) = Reminder(
         id = id,
         ownerRole = RolePolicy.ROLE_GUARDIAN,
-        wardId = "ward-1",
-        guardianId = "guardian-1",
-        title = "G-$id",
+        wardId = wardId,
+        guardianId = guardianId,
+        title = "r-$id",
         note = "",
         hour = 8,
         minute = 0,
         weekMask = 0,
         nextTriggerAt = 0L,
-        enabled = true,
-    )
-
-    private fun wardReminder(id: Long = 100L) = Reminder(
-        id = id,
-        ownerRole = RolePolicy.ROLE_WARD,
-        wardId = "ward-1",
-        guardianId = "guardian-1",
-        title = "W-$id",
-        note = "",
-        hour = 8,
-        minute = 0,
-        weekMask = 0,
-        nextTriggerAt = 0L,
-        enabled = true,
+        enabled = enabled,
     )
 
     @Test
-    fun `visibleReminders hides everything when no role is set`() {
-        val all = listOf(guardianReminder(1), wardReminder(101))
-        val visible = RolePolicy.visibleReminders(all, localRole = null)
-        assertTrue(visible.isEmpty())
+    fun `visibleRemindersForAccount requires a non-blank account id`() {
+        val r = rem()
+        assertTrue(RolePolicy.visibleRemindersForAccount(listOf(r), null, ReminderSide.WARD).isEmpty())
+        assertTrue(RolePolicy.visibleRemindersForAccount(listOf(r), "", ReminderSide.WARD).isEmpty())
     }
 
     @Test
-    fun `visibleReminders shows only the matching role regardless of demo mode`() {
-        val all = listOf(guardianReminder(1), wardReminder(101))
-        assertEquals(
-            listOf<Long>(1L),
-            RolePolicy.visibleReminders(all, RolePolicy.ROLE_GUARDIAN).map { it.id }
+    fun `ward view shows only reminders whose wardId matches`() {
+        val a = rem(id = 1, wardId = "alice", guardianId = "bob")
+        val b = rem(id = 2, wardId = "alice", guardianId = "carol")
+        val c = rem(id = 3, wardId = "bob", guardianId = "alice")
+        val visible = RolePolicy.visibleRemindersForAccount(
+            listOf(a, b, c), "alice", ReminderSide.WARD
         )
-        assertEquals(
-            listOf<Long>(101L),
-            RolePolicy.visibleReminders(all, RolePolicy.ROLE_WARD).map { it.id }
+        assertTrue(visible.any { it.id == 1L })
+        assertTrue(visible.any { it.id == 2L })
+        assertFalse(visible.any { it.id == 3L })
+    }
+
+    @Test
+    fun `guardian view shows only reminders whose guardianId matches`() {
+        val a = rem(id = 1, wardId = "alice", guardianId = "bob")
+        val b = rem(id = 2, wardId = "bob", guardianId = "alice")
+        val visible = RolePolicy.visibleRemindersForAccount(
+            listOf(a, b), "alice", ReminderSide.GUARDIAN
+        )
+        assertTrue(visible.any { it.id == 2L })
+        assertFalse(visible.any { it.id == 1L })
+    }
+
+    @Test
+    fun `pre-migration junk with empty ids is dropped`() {
+        val junk = rem(id = 1, wardId = "", guardianId = "")
+        val real = rem(id = 2, wardId = "alice", guardianId = "alice")
+        assertTrue(
+            RolePolicy.visibleRemindersForAccount(listOf(junk, real), "alice", ReminderSide.WARD)
+                .none { it.id == 1L }
         )
     }
 
     @Test
-    fun `canArm is true only when local device is ward AND reminder targets ward AND is enabled`() {
-        val w = wardReminder()
-        assertFalse(RolePolicy.canArm(w, localRole = null))
-        assertFalse(RolePolicy.canArm(w, localRole = RolePolicy.ROLE_GUARDIAN))
-        assertTrue(RolePolicy.canArm(w, localRole = RolePolicy.ROLE_WARD))
-        assertFalse(RolePolicy.canArm(w.copy(enabled = false), localRole = RolePolicy.ROLE_WARD))
+    fun `canArm is true only when current account is the ward`() {
+        val r = rem(wardId = "me")
+        assertTrue(RolePolicy.canArm(r, "me"))
+        assertFalse(RolePolicy.canArm(r, "someone-else"))
+        assertFalse(RolePolicy.canArm(r, null))
     }
 
     @Test
-    fun `canArm is false even on a ward device for a guardian-owned reminder`() {
-        val g = guardianReminder()
-        assertFalse(RolePolicy.canArm(g, localRole = RolePolicy.ROLE_WARD))
+    fun `canArm is false when reminder is disabled`() {
+        val r = rem(wardId = "me", enabled = false)
+        assertFalse(RolePolicy.canArm(r, "me"))
     }
 
     @Test
-    fun `canEdit is true only when local device is guardian AND reminder is guardian-owned`() {
-        val g = guardianReminder()
-        val w = wardReminder()
-        assertTrue(RolePolicy.canEdit(g, RolePolicy.ROLE_GUARDIAN))
-        assertFalse(RolePolicy.canEdit(g, RolePolicy.ROLE_WARD))
-        assertFalse(RolePolicy.canEdit(g, null))
-        assertFalse(RolePolicy.canEdit(w, RolePolicy.ROLE_GUARDIAN))
-        assertFalse(RolePolicy.canEdit(w, RolePolicy.ROLE_WARD))
-    }
-
-    @Test
-    fun `canFireOnDemand is false in production mode`() {
-        assertFalse(RolePolicy.canFireOnDemand(RolePolicy.ROLE_GUARDIAN, demoMode = false))
-        assertFalse(RolePolicy.canFireOnDemand(RolePolicy.ROLE_WARD, demoMode = false))
-    }
-
-    @Test
-    fun `canFireOnDemand is true for any role when demo mode is on`() {
-        assertTrue(RolePolicy.canFireOnDemand(RolePolicy.ROLE_GUARDIAN, demoMode = true))
-        assertTrue(RolePolicy.canFireOnDemand(RolePolicy.ROLE_WARD, demoMode = true))
-        assertFalse(RolePolicy.canFireOnDemand(null, demoMode = true))
-    }
-
-    @Test
-    fun `strict invariant - a guardian's local reminder can never be armed on this device`() {
-        // This is the rule the AlarmEngine enforces. Document it as a property test.
-        val g = guardianReminder()
-        for (role in listOf(null, RolePolicy.ROLE_GUARDIAN, RolePolicy.ROLE_WARD)) {
-            assertFalse(
-                "guardian reminder must never arm on localRole=$role",
-                RolePolicy.canArm(g, role)
-            )
-        }
+    fun `canEdit is true only for the author`() {
+        val r = rem(guardianId = "bob", wardId = "alice")
+        assertTrue(RolePolicy.canEdit(r, "bob"))
+        assertFalse(RolePolicy.canEdit(r, "alice"))
+        assertFalse(RolePolicy.canEdit(r, null))
     }
 }
