@@ -18,6 +18,8 @@ class RolePolicyTest {
     private fun guardianReminder(id: Long = 1L) = Reminder(
         id = id,
         ownerRole = RolePolicy.ROLE_GUARDIAN,
+        wardId = "ward-1",
+        guardianId = "guardian-1",
         title = "G-$id",
         note = "",
         hour = 8,
@@ -30,6 +32,8 @@ class RolePolicyTest {
     private fun wardReminder(id: Long = 100L) = Reminder(
         id = id,
         ownerRole = RolePolicy.ROLE_WARD,
+        wardId = "ward-1",
+        guardianId = "guardian-1",
         title = "W-$id",
         note = "",
         hour = 8,

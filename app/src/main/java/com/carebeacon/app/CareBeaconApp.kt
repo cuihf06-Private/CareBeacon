@@ -5,7 +5,9 @@ import com.carebeacon.app.data.AccountRepository
 import com.carebeacon.app.data.AppDatabase
 import com.carebeacon.app.data.LocalAccountRepository
 import com.carebeacon.app.data.LocalRelationshipRepository
+import com.carebeacon.app.data.LocalReminderRepository
 import com.carebeacon.app.data.RelationshipRepository
+import com.carebeacon.app.data.ReminderRepository
 import com.carebeacon.app.data.RoleStore
 import com.carebeacon.app.data.SessionStore
 import com.carebeacon.app.service.WardForegroundService
@@ -22,6 +24,10 @@ class CareBeaconApp : Application() {
 
     val relationshipRepository: RelationshipRepository by lazy {
         LocalRelationshipRepository(database.relationshipDao(), database.accountDao())
+    }
+
+    val reminderRepository: ReminderRepository by lazy {
+        LocalReminderRepository(database.reminderDao())
     }
 
     fun startWardService() {

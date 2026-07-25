@@ -8,15 +8,33 @@ import androidx.room.PrimaryKey
  * A single reminder entry. Times are stored as wall-clock (hour/minute/weekday) plus the
  * absolute epoch-millis of the next fire. The alarm engine reads [nextTriggerAt] directly
  * when calling AlarmManager.setAlarmClock.
+ *
+ * Authoring is identified by [guardianId] and [wardId] — the reminder targets the
+ * ward account and is configured by the guardian account. [ownerRole] is the
+ * legacy field kept until PR4 deletes it (it always implies `guardianId` on
+ * insert, and the UI gate that used to read it is gone in PR3).
  */
 @Entity(tableName = "reminders")
 data class Reminder(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
 
-    /** Local id for now; in v2 the guardian_id/ward_id come from the server. */
+    /** Ward account id — the account that receives this reminder. */
+    @ColumnInfo(name = "ward_id")
+    val wardId: String,
+
+    /** Guardian account id — the account that configured this reminder. */
+    @ColumnInfo(name = "guardian_id")
+    val guardianId: String,
+
+    /**
+     * Legacy field: which role this row was authored under the old device-role
+     * model. Always equal to [RolePolicy.ROLE_GUARDIAN] for new rows. Kept for
+     * one migration cycle so the old UI can still render reminders that haven't
+     * been backfilled to a real account.
+     */
     @ColumnInfo(name = "owner_role")
-    val ownerRole: String,
+    val ownerRole: String = RolePolicy.ROLE_GUARDIAN,
 
     @ColumnInfo(name = "title")
     val title: String,
@@ -50,7 +68,7 @@ data class Reminder(
     val createdAt: Long = System.currentTimeMillis(),
 ) {
     companion object {
-        const val ROLE_GUARDIAN = "guardian"
-        const val ROLE_WARD = "ward"
+        const val ROLE_GUARDIAN = RolePolicy.ROLE_GUARDIAN
+        const val ROLE_WARD = RolePolicy.ROLE_WARD
     }
 }
