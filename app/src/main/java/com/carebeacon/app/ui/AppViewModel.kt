@@ -92,8 +92,49 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Subset of [myRelationships] where the current account is the guardian. */
+    val myWards: StateFlow<List<Relationship>> = cb.sessionStore.currentAccountId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyList()) else relationshipRepo.observeMyWards(id)
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Subset of [myRelationships] where the current account is the ward. */
+    val myGuardians: StateFlow<List<Relationship>> = cb.sessionStore.currentAccountId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyList()) else relationshipRepo.observeMyGuardians(id)
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     private val _pairCode = MutableStateFlow<String?>(null)
     val pairCode: StateFlow<String?> = _pairCode.asStateFlow()
+
+    /**
+     * Snapshot of every known account keyed by id. Lets the UI render
+     * displayNames for the peers in [myWards] / [myGuardians] without a join.
+     * Empty map when no session is active.
+     */
+    @Suppress("OPT_IN_USAGE")
+    val accountsById: StateFlow<Map<String, Account>> = cb.sessionStore.currentAccountId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyMap())
+            else {
+                // Re-emit whenever any of the peers' rows change. For now we
+                // sample once on subscribe and on every relationship change;
+                // a follow-up can wire a Flow on the account DAO directly.
+                myRelationships.flatMapLatest { rels ->
+                    kotlinx.coroutines.flow.flow {
+                        val map = mutableMapOf<String, Account>()
+                        for (r in rels) {
+                            cb.database.accountDao().getById(r.wardId)?.let { map[it.id] = it }
+                            cb.database.accountDao().getById(r.guardianId)?.let { map[it.id] = it }
+                        }
+                        emit(map)
+                    }
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     init {
         viewModelScope.launch {
