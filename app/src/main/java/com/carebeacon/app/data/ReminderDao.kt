@@ -23,6 +23,30 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE enabled = 1")
     suspend fun allEnabled(): List<Reminder>
 
+    /** Account-aware: reminders targeted at [wardId] (the account is the ward). */
+    @Query(
+        """
+        SELECT * FROM reminders
+        WHERE ward_id = :wardId AND enabled = 1
+        ORDER BY hour, minute
+        """
+    )
+    fun observeTargetingWard(wardId: String): Flow<List<Reminder>>
+
+    /** Snapshot for the alarm engine — only enabled rows targeted at [wardId]. */
+    @Query("SELECT * FROM reminders WHERE ward_id = :wardId AND enabled = 1")
+    suspend fun allEnabledTargetingWard(wardId: String): List<Reminder>
+
+    /** Account-aware: reminders authored by [guardianId] (the account is the guardian). */
+    @Query(
+        """
+        SELECT * FROM reminders
+        WHERE guardian_id = :guardianId
+        ORDER BY hour, minute
+        """
+    )
+    fun observeAuthoredBy(guardianId: String): Flow<List<Reminder>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(reminder: Reminder): Long
 

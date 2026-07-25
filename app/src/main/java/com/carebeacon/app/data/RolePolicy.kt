@@ -66,4 +66,30 @@ object RolePolicy {
     fun canFireOnDemand(localRole: String?, demoMode: Boolean): Boolean {
         return demoMode && (localRole == ROLE_GUARDIAN || localRole == ROLE_WARD)
     }
+
+    /**
+     * Account-aware visibility. Replaces [visibleReminders] once PR3 retires
+     * the device-role UI. Filters reminders to those targeted at [accountId]
+     * when viewing as a ward, or authored by [accountId] when viewing as a
+     * guardian. Reminders with empty wardId/guardianId (pre-migration junk)
+     * are dropped — they have no account attribution and the UI cannot
+     * authoritatively show them.
+     */
+    fun visibleRemindersForAccount(
+        all: List<Reminder>,
+        accountId: String?,
+        side: ReminderSide,
+    ): List<Reminder> {
+        if (accountId.isNullOrBlank()) return emptyList()
+        return when (side) {
+            ReminderSide.GUARDIAN -> all.filter {
+                it.guardianId == accountId && it.guardianId.isNotBlank()
+            }
+            ReminderSide.WARD -> all.filter {
+                it.wardId == accountId && it.wardId.isNotBlank()
+            }
+        }
+    }
 }
+
+enum class ReminderSide { GUARDIAN, WARD }

@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [Reminder::class, AckLog::class, Account::class, Relationship::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -24,8 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         /**
          * v1 → v2: introduce `accounts` and `relationships` for the new account
-         * model. The new tables start empty; PR2 will back-fill old reminders
-         * via a one-shot migration that also creates a `legacy` account.
+         * model. The new tables start empty; v2 → v3 back-fills reminders.
          */
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -66,13 +65,47 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v2 → v3: add [Reminder.wardId] / [Reminder.guardianId] and back-fill
+         * old rows to a single `legacy` account under a self-relationship.
+         *
+         * The `legacy` account's id is a fixed constant ([LEGACY_ACCOUNT_ID]) so
+         * the user can find it via username `legacy` from the AuthScreen.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add the new columns. They are NOT NULL with a default of '' so
+                // existing rows remain valid before we back-fill them.
+                db.execSQL("ALTER TABLE `reminders` ADD COLUMN `ward_id` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `reminders` ADD COLUMN `guardian_id` TEXT NOT NULL DEFAULT ''")
+
+                // Seed the legacy account + self-relationship so old reminders
+                // can be attributed and the user can log back in.
+                val now = System.currentTimeMillis()
+                db.execSQL(
+                    "INSERT OR IGNORE INTO `accounts` (`id`, `username`, `display_name`, `created_at`) " +
+                        "VALUES ('$LEGACY_ACCOUNT_ID', 'legacy', 'Legacy (imported data)', $now)"
+                )
+                db.execSQL(
+                    "INSERT OR IGNORE INTO `relationships` " +
+                        "(`id`, `ward_id`, `guardian_id`, `status`, `invited_at`, `accepted_at`) " +
+                        "VALUES ('$LEGACY_RELATIONSHIP_ID', '$LEGACY_ACCOUNT_ID', " +
+                        "'$LEGACY_ACCOUNT_ID', 'ACCEPTED', $now, $now)"
+                )
+                db.execSQL(
+                    "UPDATE `reminders` SET `ward_id` = '$LEGACY_ACCOUNT_ID', " +
+                        "`guardian_id` = '$LEGACY_ACCOUNT_ID' WHERE `ward_id` = ''"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 "carebeacon.db"
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigration() // safety net for dev
                 .build()
                 .also { instance = it }

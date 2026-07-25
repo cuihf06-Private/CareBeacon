@@ -33,4 +33,12 @@ object RelationshipPolicy {
 
     /** Active = non-revoked. Helper for callers that don't want to compare strings. */
     fun isActive(r: Relationship): Boolean = r.status != STATUS_REVOKED
+
+    /** True iff [accountId] is the author (guardian) of [reminder]. */
+    fun isAuthor(reminder: Reminder, accountId: String): Boolean =
+        reminder.guardianId == accountId
+
+    /** True iff [accountId] is the target (ward) of [reminder]. */
+    fun isTarget(reminder: Reminder, accountId: String): Boolean =
+        reminder.wardId == accountId
 }
