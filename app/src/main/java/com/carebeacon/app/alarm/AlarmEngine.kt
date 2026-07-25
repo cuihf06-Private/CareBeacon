@@ -19,11 +19,12 @@ import com.carebeacon.app.data.RolePolicy
  *  - Chinese OEM survival is layered on top via [com.carebeacon.app.permissions.PermissionHelper]
  *    and a foreground service.
  *
- * Strict role rule (this class enforces it):
- *  - Only arms reminders that pass [RolePolicy.canArm] — i.e. the local device is
- *    the *ward* for that reminder. A guardian device configured the same way will
- *    explicitly cancel any stale alarms it finds, so role switches take effect
- *    immediately on the next arm cycle.
+ * Account-aware role rule (this class enforces it):
+ *  - Only arms reminders that pass [RolePolicy.canArm] for [accountId] — i.e.
+ *    the reminder's `wardId` is the current account. A device logged in as a
+ *    different account (or with no session) will explicitly cancel any stale
+ *    alarms it finds, so account switches take effect immediately on the
+ *    next arm cycle.
  */
 class AlarmEngine(private val context: Context) {
 
@@ -34,19 +35,19 @@ class AlarmEngine(private val context: Context) {
      * Re-arm every reminder that this device is allowed to fire.
      * Reminders that fail [RolePolicy.canArm] are cancelled defensively.
      */
-    fun rescheduleAll(reminders: List<Reminder>, localRole: String?) {
-        reminders.forEach { schedule(it, localRole) }
+    fun rescheduleAll(reminders: List<Reminder>, accountId: String?) {
+        reminders.forEach { schedule(it, accountId) }
     }
 
     /**
-     * Schedule (or cancel) a single reminder based on the local role.
+     * Schedule (or cancel) a single reminder based on the current account.
      *
      * If the device is not the ward for this reminder the alarm is cancelled.
-     * That means a Guardian device will never fire, even if the row leaked into
-     * the local DB through some other path.
+     * That means a Guardian device, or a device logged out, will never fire,
+     * even if the row leaked into the local DB through some other path.
      */
-    fun schedule(reminder: Reminder, localRole: String?) {
-        if (!RolePolicy.canArm(reminder, localRole)) {
+    fun schedule(reminder: Reminder, accountId: String?) {
+        if (!RolePolicy.canArm(reminder, accountId)) {
             cancel(reminder.id)
             return
         }
@@ -70,7 +71,7 @@ class AlarmEngine(private val context: Context) {
             )
             Log.i(
                 TAG,
-                "Scheduled alarm id=${reminder.id} '${reminder.title}' at $triggerAt (localRole=$localRole)"
+                "Scheduled alarm id=${reminder.id} '${reminder.title}' at $triggerAt (accountId=$accountId)"
             )
         } catch (se: SecurityException) {
             Log.w(TAG, "setAlarmClock denied; falling back to setAndAllowWhileIdle", se)

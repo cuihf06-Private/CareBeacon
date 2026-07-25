@@ -2,20 +2,9 @@
 <resources>
     <string name="app_name">CareBeacon</string>
 
-    <!-- Role selection -->
-    <string name="role_select_title">请选择身份</string>
-    <string name="role_guardian">我是监护人</string>
-    <string name="role_guardian_desc">为长辈或孩子配置提醒</string>
-    <string name="role_ward">我被监护</string>
-    <string name="role_ward_desc">我需要被提醒按时完成任务</string>
-
     <!-- Guardian -->
     <string name="guardian_title">提醒管理</string>
     <string name="guardian_add">新建提醒</string>
-    <string name="guardian_pair">配对被提醒人</string>
-    <string name="guardian_code_label">你的邀请码</string>
-    <string name="guardian_pair_hint">在被提醒人端输入此码</string>
-    <string name="guardian_regenerate">重新生成</string>
 
     <!-- Reminder edit -->
     <string name="reminder_title_label">提醒标题</string>
@@ -32,8 +21,6 @@
     <string name="ward_status_pending">待提醒</string>
     <string name="ward_status_acknowledged">已确认</string>
     <string name="ward_status_overdue">已超时</string>
-    <string name="ward_pair_label">输入监护人邀请码</string>
-    <string name="ward_pair_action">配对</string>
 
     <!-- Permissions -->
     <string name="perm_battery_title">保持提醒运行</string>
@@ -86,8 +73,8 @@
     <string name="home_my_wards">我监护的人</string>
     <string name="home_my_guardians">监护我的人</string>
     <string name="home_invite">邀请监护人</string>
-    <string name="home_enter_guardian">进入监护模式（临时）</string>
-    <string name="home_enter_ward">进入被提醒模式（临时）</string>
+    <string name="home_enter_guardian">管理我设置的提醒</string>
+    <string name="home_enter_ward">查看收到的提醒</string>
     <string name="home_empty_wards">还没有邀请任何人做你的监护对象。</string>
     <string name="home_empty_guardians">还没有监护人。点击「邀请监护人」开始。</string>
     <string name="home_back">返回账号</string>

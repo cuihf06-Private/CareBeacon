@@ -227,10 +227,11 @@ class AlertActivity : ComponentActivity() {
                     val reminder = app.database.reminderDao().get(reminderId)
                     if (reminder != null) {
                         val engine = AlarmEngine(app)
-                        // The alert only ever fires on a Ward device (see RolePolicy.canArm),
-                        // so reading the role from the store is safe and self-consistent.
-                        val localRole = app.roleStore.role.first()
-                        engine.rescheduleAll(listOf(reminder), localRole)
+                        // The alert only ever fires for a logged-in ward account
+                        // (see RolePolicy.canArm), so reading the account id from
+                        // the session store is safe and self-consistent.
+                        val accountId = app.sessionStore.currentAccountId.first()
+                        engine.rescheduleAll(listOf(reminder), accountId)
                     }
                 }
             }

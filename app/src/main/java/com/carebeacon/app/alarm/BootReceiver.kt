@@ -12,12 +12,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * On boot, all AlarmManager schedules are wiped. We re-arm every reminder that
- * the local device is allowed to fire.
- *
- * The role gate is read from [com.carebeacon.app.data.RoleStore]: a Guardian
- * device will pick up ward-role reminders from the DB and immediately cancel
- * them, satisfying the design rule that a Guardian never receives alerts.
+ * On boot, all AlarmManager schedules are wiped. We re-arm every reminder
+ * whose wardId matches the currently logged-in account. Devices with no
+ * session (logged out) cancel everything defensively, satisfying the design
+ * rule that a logged-out device never receives alerts.
  */
 class BootReceiver : BroadcastReceiver() {
 
@@ -28,15 +26,15 @@ class BootReceiver : BroadcastReceiver() {
             action != Intent.ACTION_LOCKED_BOOT_COMPLETED
         ) return
 
-        Log.i(TAG, "Boot completed — re-arming alarms under strict role gate")
+        Log.i(TAG, "Boot completed — re-arming alarms under account gate")
         val pendingResult = goAsync()
         val app = context.applicationContext as CareBeaconApp
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val localRole = app.roleStore.role.first()
+                val accountId = app.sessionStore.currentAccountId.first()
                 val reminders = app.database.reminderDao().allEnabled()
-                AlarmEngine(app).rescheduleAll(reminders, localRole)
-                if (localRole == RolePolicy.ROLE_WARD && reminders.any { RolePolicy.canArm(it, localRole) }) {
+                AlarmEngine(app).rescheduleAll(reminders, accountId)
+                if (accountId != null && reminders.any { RolePolicy.canArm(it, accountId) }) {
                     app.startWardService()
                 }
             } finally {
