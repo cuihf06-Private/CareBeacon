@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CareBeacon</string>
+
+    <!-- Role selection -->
+    <string name="role_select_title">请选择身份</string>
+    <string name="role_guardian">我是监护人</string>
+    <string name="role_guardian_desc">为长辈或孩子配置提醒</string>
+    <string name="role_ward">我被监护</string>
+    <string name="role_ward_desc">我需要被提醒按时完成任务</string>
+
+    <!-- Guardian -->
+    <string name="guardian_title">提醒管理</string>
+    <string name="guardian_add">新建提醒</string>
+    <string name="guardian_pair">配对被提醒人</string>
+    <string name="guardian_code_label">你的邀请码</string>
+    <string name="guardian_pair_hint">在被提醒人端输入此码</string>
+    <string name="guardian_regenerate">重新生成</string>
+
+    <!-- Reminder edit -->
+    <string name="reminder_title_label">提醒标题</string>
+    <string name="reminder_title_hint">例如：吃降压药</string>
+    <string name="reminder_note_label">备注（可选）</string>
+    <string name="reminder_time_label">时间</string>
+    <string name="reminder_repeat_label">按周重复</string>
+    <string name="reminder_save">保存</string>
+    <string name="reminder_delete">删除</string>
+    <string name="reminder_test_fire">立即触发一次（测试）</string>
+
+    <!-- Ward -->
+    <string name="ward_title">今日提醒</string>
+    <string name="ward_status_pending">待提醒</string>
+    <string name="ward_status_acknowledged">已确认</string>
+    <string name="ward_status_overdue">已超时</string>
+    <string name="ward_pair_label">输入监护人邀请码</string>
+    <string name="ward_pair_action">配对</string>
+
+    <!-- Permissions -->
+    <string name="perm_battery_title">保持提醒运行</string>
+    <string name="perm_battery_desc">请允许 CareBeacon 在后台运行，否则系统会静默杀掉闹钟。</string>
+    <string name="perm_battery_action">去设置</string>
+    <string name="perm_overlay_title">允许显示悬浮窗</string>
+    <string name="perm_overlay_desc">开启后才能在最上面弹出不可忽略的提醒。</string>
+    <string name="perm_autostart_title">开启自启动</string>
+    <string name="perm_autostart_desc">开机后请将 CareBeacon 加入自启动白名单。</string>
+    <string name="perm_notifications_title">允许通知</string>
+    <string name="perm_notifications_desc">用于后台保活通知和确认回执。</string>
+    <string name="perm_done">完成</string>
+
+    <!-- Foreground service -->
+    <string name="svc_ward_channel">后台保活</string>
+    <string name="svc_ward_channel_desc">保持提醒服务持续运行</string>
+    <string name="svc_ward_title">CareBeacon 正在守护</string>
+    <string name="svc_ward_text">按时提醒已开启</string>
+
+    <!-- Alert -->
+    <string name="alert_acknowledge">我知道了</string>
+    <string name="alert_overlay_channel">紧急提醒</string>
+    <string name="alert_overlay_channel_desc">不可忽略的全屏提醒</string>
+
+    <!-- Notification ack channel (Guardian) -->
+    <string name="ack_channel">确认回执</string>
+    <string name="ack_channel_desc">被提醒人已确认某项提醒</string>
+    <string name="ack_title">被提醒人已确认</string>
+    <string name="ack_text_format">%1$s 已确认</string>
+
+    <!-- Common -->
+    <string name="ok">确定</string>
+    <string name="cancel">取消</string>
+    <string name="empty">暂无数据</string>
+</resources>

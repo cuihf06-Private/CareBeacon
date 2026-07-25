@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#D32F2F"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="⏰"
+        android:textSize="96sp"
+        android:textColor="#FFFFFF" />
+
+    <TextView
+        android:id="@+id/overlay_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:textColor="#FFFFFF"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:text="提醒" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:text="请点击下方按钮确认" />
+
+    <Button
+        android:id="@+id/overlay_ack"
+        android:layout_width="240dp"
+        android:layout_height="96dp"
+        android:layout_marginTop="48dp"
+        android:text="我知道了"
+        android:textColor="#D32F2F"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:backgroundTint="#FFFFFF" />
+</LinearLayout>
