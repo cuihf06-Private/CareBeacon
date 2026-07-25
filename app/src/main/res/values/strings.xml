@@ -68,4 +68,40 @@
     <string name="ok">确定</string>
     <string name="cancel">取消</string>
     <string name="empty">暂无数据</string>
+
+    <!-- AuthScreen (PR3) -->
+    <string name="auth_title">CareBeacon</string>
+    <string name="auth_subtitle">请登录或注册以使用本机</string>
+    <string name="auth_tab_login">登录</string>
+    <string name="auth_tab_register">注册</string>
+    <string name="auth_username_label">用户名</string>
+    <string name="auth_displayname_label">显示名称</string>
+    <string name="auth_login_action">登录</string>
+    <string name="auth_register_action">注册并登录</string>
+    <string name="auth_legacy_hint">检测到旧版本数据，使用用户名 legacy 登录可恢复。</string>
+
+    <!-- HomeScreen (PR3) -->
+    <string name="home_title">账号</string>
+    <string name="home_logout">退出登录</string>
+    <string name="home_my_wards">我监护的人</string>
+    <string name="home_my_guardians">监护我的人</string>
+    <string name="home_invite">邀请监护人</string>
+    <string name="home_enter_guardian">进入监护模式（临时）</string>
+    <string name="home_enter_ward">进入被提醒模式（临时）</string>
+    <string name="home_empty_wards">还没有邀请任何人做你的监护对象。</string>
+    <string name="home_empty_guardians">还没有监护人。点击「邀请监护人」开始。</string>
+    <string name="home_back">返回账号</string>
+
+    <!-- InviteSheet (PR3) -->
+    <string name="invite_title">邀请监护人</string>
+    <string name="invite_subtitle">输入对方的用户名（注册时设置的那个）。</string>
+    <string name="invite_ward_label">为哪个账号邀请？</string>
+    <string name="invite_self_hint">选择「自己」即邀请自己，允许在单台设备上演示。</string>
+    <string name="invite_action">发送邀请</string>
+    <string name="invite_success">已邀请 %1$s 做监护人</string>
+    <string name="invite_not_found">找不到用户 %1$s</string>
+    <string name="invite_duplicate">已经是监护人了</string>
+
+    <!-- Generic -->
+    <string name="back">返回</string>
 </resources>

@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -27,9 +28,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.carebeacon.app.R
 import com.carebeacon.app.data.AckLog
 import com.carebeacon.app.data.Reminder
 import java.text.SimpleDateFormat
@@ -42,13 +45,27 @@ fun WardScreen(
     viewModel: AppViewModel,
     onRequestPermissions: () -> Unit,
     onArmReminders: () -> Unit,
+    onBack: (() -> Unit)? = null,
 ) {
     val reminders by viewModel.reminders.collectAsState()
     val acks by viewModel.acks.collectAsState()
     val demo by viewModel.demoMode.collectAsState()
     var input by remember { mutableStateOf("") }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("今日提醒") }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("今日提醒") },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Text(stringResource(R.string.back), fontSize = 14.sp)
+                        }
+                    }
+                }
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

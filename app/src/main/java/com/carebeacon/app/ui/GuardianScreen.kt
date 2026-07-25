@@ -30,9 +30,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.carebeacon.app.R
 import com.carebeacon.app.data.Reminder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,13 +43,25 @@ fun GuardianScreen(
     viewModel: AppViewModel,
     demoMode: Boolean,
     onAdd: () -> Unit,
-    onTest: (Reminder) -> Unit
+    onTest: (Reminder) -> Unit,
+    onBack: (() -> Unit)? = null,
 ) {
     val reminders by viewModel.reminders.collectAsState()
     val pairCode by viewModel.pairCode.collectAsState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("提醒管理") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("提醒管理") },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Text(stringResource(R.string.back), fontSize = 14.sp)
+                        }
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAdd) {
                 Icon(Icons.Default.Add, contentDescription = "新建提醒")

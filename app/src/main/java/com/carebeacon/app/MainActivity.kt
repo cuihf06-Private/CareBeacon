@@ -9,17 +9,23 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.carebeacon.app.data.RolePolicy
 import com.carebeacon.app.permissions.PermissionHelper
 import com.carebeacon.app.ui.AppViewModel
+import com.carebeacon.app.ui.AuthScreen
 import com.carebeacon.app.ui.GuardianScreen
-import com.carebeacon.app.ui.RoleSelectScreen
+import com.carebeacon.app.ui.HomeScreen
+import com.carebeacon.app.ui.InviteSheet
 import com.carebeacon.app.ui.WardScreen
 import com.carebeacon.app.ui.theme.CareBeaconTheme
-import androidx.activity.viewModels
 
 class MainActivity : ComponentActivity() {
 
@@ -34,29 +40,62 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CareBeaconTheme {
-                val role by viewModel.role.collectAsState()
-                val demo by viewModel.demoMode.collectAsState()
+                val session by viewModel.session.collectAsState()
+                // Which legacy role screen to show while we're inside it. The
+                // value flips to null when the user goes back to HomeScreen.
+                // PR4 deletes this and the role-based screens entirely.
+                var workspace by rememberSaveable { mutableStateOf<String?>(null) }
+                var showInvite by remember { mutableStateOf(false) }
+
                 when {
-                    role == null -> RoleSelectScreen(
-                        demoMode = demo,
-                        onSetDemoMode = viewModel::setDemoMode,
-                        onGuardian = { viewModel.setRole(RolePolicy.ROLE_GUARDIAN) },
-                        onWard = {
+                    session == null -> AuthScreen(
+                        showLegacyHint = false, // PR3 keeps this off; PR4 flips it on.
+                        onLogin = { username, cb ->
+                            viewModel.login(username) { result -> cb(result.map {}) }
+                        },
+                        onRegister = { username, displayName, cb ->
+                            viewModel.register(username, displayName) { result -> cb(result.map {}) }
+                        }
+                    )
+                    workspace == null -> HomeScreen(
+                        viewModel = viewModel,
+                        onEnterGuardianMode = {
+                            viewModel.setRole(RolePolicy.ROLE_GUARDIAN)
+                            workspace = "guardian"
+                        },
+                        onEnterWardMode = {
                             viewModel.setRole(RolePolicy.ROLE_WARD)
                             viewModel.armVisibleReminders()
                             startServiceCompat()
-                        }
+                            workspace = "ward"
+                        },
+                        onOpenInvite = { showInvite = true },
                     )
-                    role == RolePolicy.ROLE_GUARDIAN -> GuardianScreen(
+                    workspace == "guardian" -> GuardianScreen(
                         viewModel = viewModel,
-                        demoMode = demo,
+                        demoMode = viewModel.demoMode.collectAsState().value,
                         onAdd = { startActivity(Intent(this, ReminderEditActivity::class.java)) },
-                        onTest = viewModel::fireNow
+                        onTest = viewModel::fireNow,
+                        onBack = { workspace = null }
                     )
-                    role == RolePolicy.ROLE_WARD -> WardScreen(
+                    workspace == "ward" -> WardScreen(
                         viewModel = viewModel,
                         onRequestPermissions = ::requestWardPermissions,
-                        onArmReminders = ::armWardReminders
+                        onArmReminders = ::armWardReminders,
+                        onBack = { workspace = null }
+                    )
+                }
+
+                if (showInvite && session != null) {
+                    InviteSheet(
+                        onDismiss = { showInvite = false },
+                        onSubmit = { username, cb ->
+                            viewModel.inviteGuardian(
+                                wardId = session!!,
+                                guardianUsername = username,
+                                onResult = { result -> cb(result.map {}) }
+                            )
+                        }
                     )
                 }
             }
